@@ -1,1 +1,0 @@
-nisi3genki@Arch-Linux.30674:1549353343
