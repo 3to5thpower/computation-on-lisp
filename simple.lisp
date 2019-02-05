@@ -63,6 +63,17 @@
      (make-multiply (left obj) (reduction (right obj))))
     (t (make-num (* (value (left obj)) (value (right obj)))))))
 
+(defclass boolean ()
+  ((value :accessor :initarg ::value)))
+(defmacro make-boolean (value)
+  `(make-instance 'boolean :value ,value))
+(defmethod to-s ((obj boolean))
+  (format nil "~a" (slot-value obj 'value)))
+(defmethod reduciblep ((obj boolean))
+  nil)
+
+
+
 
 (defun machine-run (obj)
   (format t "~a~%" (show obj))
