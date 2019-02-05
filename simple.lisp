@@ -6,9 +6,6 @@
 ;;ユーティリティとして用いる関数・マクロ
 (defun show (obj)
   (format t "<< ~A >>~%" (to-s obj)))
-(defmacro get-slot (slot-name class)
-  `(defmethod ,slot-name ((obj ,class))
-     (slot-value obj ',slot-name)))
 
 ;;numクラス
 (defclass num ()
@@ -19,7 +16,7 @@
   (format nil "~a" (slot-value obj 'value)))
 (defmethod reduciblep ((obj num))
   nil)
-(get-slot value num)
+
 
 ;;addクラス
 (defclass add ()
@@ -31,16 +28,14 @@
   (format nil "~a + ~a"
                  (to-s (slot-value obj 'left))
                  (to-s (slot-value obj 'right))))
-(get-slot right add)
-(get-slot left add)
 (defmethod reduciblep ((obj add))
   t)
-(defmethod reduction ((obj add))
+(defmethod reduction ((obj add) &optional environment)
   (cond
     ((reduciblep (left obj))
-     (make-add (reduction (left obj)) (right obj)))
+     (make-add (reduction (left obj) environment) (right obj)))
     ((reduciblep (right obj))
-     (make-add (left obj) (reduction (right obj))))
+     (make-add (left obj) (reduction (right obj) environment)))
     (t (make-num (+ (value (left obj)) (value (right obj)))))))
 
 ;;multiplyクラス
@@ -55,14 +50,12 @@
                  (to-s (slot-value obj 'right))))
 (defmethod reduciblep ((obj multiply))
   t)
-(get-slot right multiply)
-(get-slot left multiply)
-(defmethod reduction ((obj multiply))
+(defmethod reduction ((obj multiply) &optional environment)
   (cond
     ((reduciblep (left obj))
-     (make-multiply (reduction (left obj)) (right obj)))
+     (make-multiply (reduction (left obj) environment) (right obj)))
     ((reduciblep (right obj))
-     (make-multiply (left obj) (reduction (right obj))))
+     (make-multiply (left obj) (reduction (right obj) environment)))
     (t (make-num (* (value (left obj)) (value (right obj)))))))
 
 ;;boolクラス
@@ -74,7 +67,6 @@
   (format nil "~a" (slot-value obj 'value)))
 (defmethod reduciblep ((obj bool))
   nil)
-(get-slot value bool)
 
 ;;lessthanクラス
 (defclass lessthan ()
@@ -82,26 +74,51 @@
    (right :accessor right :initarg :right)))
 (defmacro make-lessthan (left right)
   `(make-instance 'lessthan :left ,left :right ,right))
-(get-slot right lessthan)
-(get-slot left lessthan)
 (defmethod to-s ((obj lessthan))
   (format nil "(~a < ~a)"
           (to-s (slot-value obj 'left))
           (to-s (slot-value obj 'right))))
 (defmethod reduciblep ((obj lessthan))
   t)
-(defmethod reduction ((obj lessthan))
+(defmethod reduction ((obj lessthan) &optional environment)
   (cond
     ((reduciblep (left obj))
-     (make-lessthan (reduction (left obj)) (right obj)))
+     (make-lessthan (reduction (left obj) environment) (right obj)))
     ((reduciblep (right obj))
-     (make-lessthan (left obj) (reduction (right obj))))
+     (make-lessthan (left obj) (reduction (right obj) environment)))
     (t (make-bool (< (value (left obj)) (value (right obj)))))))
 
+;;varablクラス(変数)
+(defclass varabl ()
+  ((name :accessor name :initarg :name)))
+(defmacro make-varabl (name)
+  `(make-instance 'varabl :name ',name))
+(defmethod to-s ((obj varabl))
+  (format nil "~a" (name obj)))
+(defmethod reduciblep ((obj varabl))
+  t)
+(defmethod reduction ((obj varabl) &optional environment)
+  (cdr (assoc (name obj) environment)))
+
+;;環境を生成する関数(make-env 'x 1 'y 2 ...)のように利用
+(defun make-one-env (var val)
+  (cons var (make-num val)))
+(defun make-env (var val &rest body)
+  (do ((bodylst body (cddr bodylst))
+       (varname var (first bodylst))
+       (val val (second bodylst))
+       (lst nil (cons (make-one-env varname val) lst)))
+      ((null bodylst) (nreverse (cons (make-one-env varname val) lst)))))
+(defmacro one-varabl-env (var val)
+  `(make-env ',var ,val))
+(defmacro two-varabl-env (var1 val1 var2 val2)
+  `(nconc (make-env ',var1 ,val1)
+          (make-env ',var2 ,val2)))
 
 ;;抽象機械本体
-(defun machine-run (obj)
-  (show obj)
-  (if (reduciblep obj)
-      (machine-run (reduction obj))
-      obj))
+(defun machine-run (obj &optional environment)
+  (let ((obj obj))
+    (show obj)
+    (if (reduciblep obj)
+        (machine-run (reduction obj environment) environment)
+        obj)))
