@@ -115,6 +115,19 @@
   `(nconc (make-env ',var1 ,val1)
           (make-env ',var2 ,val2)))
 
+;;文(環境を変更する)
+;;donothing(簡約しきった文)のクラス
+(defclass donothing () ())
+(defmacro make-donothing () '(make-instance 'donothing))
+(defmethod to-s ((obj donothing))
+  (format nil "do-nothing"))
+(defmethod reduciblep ((obj donothing))
+  nil)
+
+;;assign(代入)クラス
+
+
+
 ;;抽象機械本体
 (defun machine-run (obj &optional environment)
   (let ((obj obj))
