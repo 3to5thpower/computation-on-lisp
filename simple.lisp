@@ -174,7 +174,7 @@
    (consequence :accessor consequence :initarg :consequence)
    (alternative :accessor alternative :initarg :alternative)))
 (defmethod to-s ((obj if-class))
-  (format nil "if (~a) { ~a } else { ~a } "
+  (format nil "if (~a) { ~a }~%  else { ~a } "
           (to-s (condp obj))
           (to-s (consequence obj))
           (to-s (alternative obj))))
@@ -200,7 +200,7 @@
   ((fst :accessor fst :initarg :fst)
    (scnd :accessor scnd :initarg :scnd)))
 (defmethod to-s ((obj squenc))
-  (format nil "~a; ~a" (to-s (fst obj)) (to-s (scnd obj))))
+  (format nil "~a;~%   ~a" (to-s (fst obj)) (to-s (scnd obj))))
 (defmacro make-squenc (fst scnd)
   `(make-instance 'squenc :fst ,fst :scnd ,scnd))
 (defmethod reduciblep ((obj squenc)) t)
@@ -213,3 +213,21 @@
         (make-machine
          (make-squenc (statement machine) (scnd obj))
          (environment machine)))))
+
+;;whileクラス
+(defclass while ()
+  ((condp :accessor condp :initarg :condp)
+   (body :accessor body :initarg :body)))
+(defmacro make-while (condp body)
+  `(make-instance 'while :condp ,condp :body ,body))
+(defmethod to-s ((obj while))
+  (format nil "while (~a) { ~a }"
+          (to-s (condp obj)) (to-s (body obj))))
+(defmethod reduciblep ((obj while)) t)
+(defmethod reduction ((obj while) &optional environment)
+  (make-machine
+   (make-if-class
+    (condp obj)
+    (make-squenc (body obj) (make-while (condp obj) (body obj)))
+    (make-donothing))
+   environment))
