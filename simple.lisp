@@ -2,6 +2,10 @@
 ;;ユーティリティとして用いる関数・マクロ
 (defun show (obj)
   (format t "<< ~A >>~%" (to-s obj)))
+(defun push! (obj &optional place)
+  (if place
+      (push obj place)
+      (list obj)))
 
 ;;numクラス
 (defclass num ()
@@ -114,8 +118,10 @@
                   :environment ,environment))
 (defmethod to-s ((obj machine))
   (format nil "~a, ~a" (to-s (statement obj))
-          (mapcar (lambda (x) (cons (car x) (to-s (cdr x))))
-                  (environment obj))))
+          (remove-if #'null
+                     (mapcar (lambda (x)
+                               (if x (cons (car x) (to-s (cdr x)))))
+                             (environment obj)))))
 (defmethod machine-step ((obj machine))
   (let* ((reduced ;<-machineオブジェクト
           (reduction (statement obj) (environment obj)))
@@ -160,7 +166,7 @@
                 collect (if (eq name (car x))
                             (cons name exp)
                             x))
-             (push (cons `,name exp) environment))))))
+             (push! (cons `,name exp) environment))))))
 
 ;;IFクラス
 (defclass if-class ()
@@ -188,3 +194,22 @@
     ((eq t (value (condp obj)))
      (make-machine (consequence obj) environment))
     (t (make-machine (alternative obj) environment))))
+
+;;sequenceクラス
+(defclass squenc ()
+  ((fst :accessor fst :initarg :fst)
+   (scnd :accessor scnd :initarg :scnd)))
+(defmethod to-s ((obj squenc))
+  (format nil "~a; ~a" (to-s (fst obj)) (to-s (scnd obj))))
+(defmacro make-squenc (fst scnd)
+  `(make-instance 'squenc :fst ,fst :scnd ,scnd))
+(defmethod reduciblep ((obj squenc)) t)
+(defmethod reduction ((obj squenc) &optional environment)
+  (if (equal (class-of (make-donothing))
+             (class-of (fst obj)))
+      (make-machine
+       (scnd obj) environment)
+      (let ((machine (reduction (fst obj) environment)))
+        (make-machine
+         (make-squenc (statement machine) (scnd obj))
+         (environment machine)))))
