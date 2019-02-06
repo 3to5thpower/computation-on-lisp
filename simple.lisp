@@ -1,7 +1,3 @@
-;;practice of CLOS
-;(defclass foo () ((a :accessor foo-a :initform 1 :initarg :a)))
-
-
 ;;small step semantics------------------------------------------
 ;;ユーティリティとして用いる関数・マクロ
 (defun show (obj)
@@ -14,8 +10,7 @@
   `(make-instance 'num :value ,value))
 (defmethod to-s ((obj num))
   (format nil "~a" (slot-value obj 'value)))
-(defmethod reduciblep ((obj num))
-  nil)
+(defmethod reduciblep ((obj num)) nil)
 
 
 ;;addクラス
@@ -28,8 +23,7 @@
   (format nil "~a + ~a"
                  (to-s (slot-value obj 'left))
                  (to-s (slot-value obj 'right))))
-(defmethod reduciblep ((obj add))
-  t)
+(defmethod reduciblep ((obj add)) t)
 (defmethod reduction ((obj add) &optional environment)
   (cond
     ((reduciblep (left obj))
@@ -48,8 +42,7 @@
   (format nil "~a * ~a"
                  (to-s (slot-value obj 'left))
                  (to-s (slot-value obj 'right))))
-(defmethod reduciblep ((obj multiply))
-  t)
+(defmethod reduciblep ((obj multiply)) t)
 (defmethod reduction ((obj multiply) &optional environment)
   (cond
     ((reduciblep (left obj))
@@ -65,8 +58,7 @@
   `(make-instance 'bool :value ,value))
 (defmethod to-s ((obj bool))
   (format nil "~a" (slot-value obj 'value)))
-(defmethod reduciblep ((obj bool))
-  nil)
+(defmethod reduciblep ((obj bool)) nil)
 
 ;;lessthanクラス
 (defclass lessthan ()
@@ -78,8 +70,7 @@
   (format nil "(~a < ~a)"
           (to-s (slot-value obj 'left))
           (to-s (slot-value obj 'right))))
-(defmethod reduciblep ((obj lessthan))
-  t)
+(defmethod reduciblep ((obj lessthan)) t)
 (defmethod reduction ((obj lessthan) &optional environment)
   (cond
     ((reduciblep (left obj))
@@ -95,8 +86,7 @@
   `(make-instance 'varabl :name ',name))
 (defmethod to-s ((obj varabl))
   (format nil "~a" (name obj)))
-(defmethod reduciblep ((obj varabl))
-  t)
+(defmethod reduciblep ((obj varabl)) t)
 (defmethod reduction ((obj varabl) &optional environment)
   (cdr (assoc (name obj) environment)))
 
@@ -115,23 +105,57 @@
   `(nconc (make-env ',var1 ,val1)
           (make-env ',var2 ,val2)))
 
+;;抽象機械本体
+(defclass machine ()
+  ((statement :accessor statement :initarg :statement)
+   (environment :accessor environment :initarg :environment)))
+(defmacro make-machine (statement environment)
+  `(make-instance 'machine :statement ,statement
+                  :environment ,environment))
+(defmethod to-s ((obj machine))
+  (format nil "~a, ~a" (to-s (statement obj))
+          (mapcar (lambda (x) (cons (car x) (to-s (cdr x))))
+                  (environment obj))))
+(defmethod machine-step ((obj machine))
+  (let* ((reduced ;<-machineオブジェクト
+          (reduction (statement obj) (environment obj)))
+         (state (statement reduced))
+         (env (environment reduced)))
+    (make-machine state env)))
+
+(defmethod machine-run ((obj machine))
+  (do ((local-obj obj (machine-step local-obj)))
+      ((not (reduciblep (statement local-obj)))
+       (progn (show local-obj) local-obj))
+    (show local-obj)))
+
 ;;文(環境を変更する)
 ;;donothing(簡約しきった文)のクラス
 (defclass donothing () ())
 (defmacro make-donothing () '(make-instance 'donothing))
 (defmethod to-s ((obj donothing))
   (format nil "do-nothing"))
-(defmethod reduciblep ((obj donothing))
-  nil)
+(defmethod reduciblep ((obj donothing)) nil)
 
 ;;assign(代入)クラス
-
-
-
-;;抽象機械本体
-(defun machine-run (obj &optional environment)
-  (let ((obj obj))
-    (show obj)
-    (if (reduciblep obj)
-        (machine-run (reduction obj environment) environment)
-        obj)))
+(defclass assign ()
+  ((name :accessor name :initarg :name)
+   (expression :accessor expression :initarg :expression)))
+(defmacro make-assign (name expression)
+  `(make-instance 'assign :name ',name :expression ,expression))
+(defmethod to-s ((obj assign))
+  (format nil "~a = ~a" (name obj) (to-s (expression obj))))
+(defmethod reduciblep ((obj assign)) t)
+(defmethod reduction ((obj assign) &optional environment)
+  (let ((name (name obj)) (exp (expression obj)))
+    (if (reduciblep exp)
+        (make-machine
+         (make-instance 'assign
+           :name name :expression (reduction exp environment))
+         environment)
+        (make-machine
+         (make-donothing)
+         (loop  for x in environment
+            collect (if (eq name (car x))
+                        (cons name exp)
+                        x))))))
