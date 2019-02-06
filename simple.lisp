@@ -155,10 +155,12 @@
          environment)
         (make-machine
          (make-donothing)
-         (loop  for x in environment
-            collect (if (eq name (car x))
-                        (cons name exp)
-                        x))))))
+         (if (assoc name environment)
+             (loop  for x in environment
+                collect (if (eq name (car x))
+                            (cons name exp)
+                            x))
+             (push (cons `,name exp) environment))))))
 
 ;;IFクラス
 (defclass if-class ()
