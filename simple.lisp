@@ -1,7 +1,14 @@
 ;;small step semantics------------------------------------------
 ;;ユーティリティとして用いる関数・マクロ
+(defun show-alist (alist)
+  (format t "~a = ~a~%" (caar alist) (to-s (cdar alist)))
+  (if (cdr alist)
+      (show-alist (cdr alist))))
+
 (defun show (obj)
-  (format t "<< ~A >>~%" (to-s obj)))
+  (if (listp obj)
+      (show-alist obj)
+      (format t "<< ~A >>~%" (to-s obj))))
 (defun push! (obj &optional place)
   (if place
       (push obj place)
@@ -141,7 +148,7 @@
 ;;文(環境を変更する)
 ;;donothing(簡約しきった文)のクラス
 (defclass donothing () ())
-(defmacro make-donothing () '(make-instance 'donothing))
+(defmacro donothing () '(make-instance 'donothing))
 (defmethod to-s ((obj donothing))
   (format nil "do-nothing"))
 (defmethod reduciblep ((obj donothing)) nil)
@@ -163,7 +170,7 @@
            :name name :expression (reduction exp environment))
          environment)
         (make-machine
-         (make-donothing)
+         (donothing)
          (if (assoc name environment)
              (loop  for x in environment
                 collect (if (eq name (car x))
@@ -191,7 +198,7 @@
   (cond
     ((reduciblep (condp obj))
      (make-machine
-      (make-if-class (reduction (condp obj) environment)
+      (if! (reduction (condp obj) environment)
                      (consequence obj) (alternative obj))
       environment))
     ((eq t (value (condp obj)))
@@ -204,11 +211,11 @@
    (scnd :accessor scnd :initarg :scnd)))
 (defmethod to-s ((obj squenc))
   (format nil "~a;~%   ~a" (to-s (fst obj)) (to-s (scnd obj))))
-(defmacro make-squenc (fst scnd)
+(defmacro two-sequence (fst scnd)
   `(make-instance 'squenc :fst ,fst :scnd ,scnd))
 (defmethod reduciblep ((obj squenc)) t)
 (defmethod reduction ((obj squenc) &optional environment)
-  (if (equal (class-of (make-donothing))
+  (if (equal (class-of (donothing))
              (class-of (fst obj)))
       (make-machine
        (scnd obj) environment)
@@ -229,10 +236,10 @@
 (defmethod reduciblep ((obj while)) t)
 (defmethod reduction ((obj while) &optional environment)
   (make-machine
-   (make-if-class
+   (if!
     (condp obj)
     (make-squenc (body obj) (make-while (condp obj) (body obj)))
-    (make-donothing))
+    (donothing))
    environment))
 
 ;;ビッグステップ意味論
@@ -244,7 +251,7 @@
   (cdr (assoc (name obj) environment)))
 (defmethod evaluater ((obj add) &optional environment)
   (num (+ (value (evaluater (left obj) environment))
-               (value (evaluater (right obj) environment)))))
+          (value (evaluater (right obj) environment)))))
 (defmethod evaluater ((obj multiply) &optional environment)
   (num (* (value (evaluater (left obj) environment))
                (value (evaluater (right obj) environment)))))
@@ -257,7 +264,18 @@
 (defmethod evaluater ((obj assign) &optional environment)
   (if environment
       (progn
-        (push (car (one-varabl-env (name obj) (evaluate (expression obj))))
+        (push (cons (name obj)
+                    (num (value (evaluater (expression obj) environment))))
               environment)
-        environment)
-      (one-varabl-env (name obj) (evaluate (expression obj)))))
+        (nreverse environment))
+      (list (cons (name obj)
+                  (num (value (evaluater (expression obj))))))))
+(defmethod evaluater ((obj donothing) &optional environment)
+  (declare (ignore obj)) environment)
+(defmethod evaluater ((obj if-class) &optional environment)
+  (if (evaluater (condp obj) environment)
+      (evaluater (consequence obj) environment)
+      (evaluater (alternative obj) environment)))
+(defmethod evaluater ((obj squenc) &optional environment)
+  (let ((env (evaluater (fst obj) environment)))
+    (evaluater (scnd obj) env)))
