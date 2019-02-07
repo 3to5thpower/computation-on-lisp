@@ -231,3 +231,30 @@
     (make-squenc (body obj) (make-while (condp obj) (body obj)))
     (make-donothing))
    environment))
+
+;;ビッグステップ意味論
+(defmethod evaluater ((obj num) &optional environment)
+  (declare (ignore environment)) obj)
+(defmethod evaluater ((obj bool) &optional environment)
+  (declare (ignore environment)) obj)
+(defmethod evaluater ((obj varabl) &optional environment)
+  (cdr (assoc (name obj) environment)))
+(defmethod evaluater ((obj add) &optional environment)
+  (make-num (+ (value (evaluater (left obj) environment))
+               (value (evaluater (right obj) environment)))))
+(defmethod evaluater ((obj multiply) &optional environment)
+  (make-num (* (value (evaluater (left obj) environment))
+               (value (evaluater (right obj) environment)))))
+(defmethod evaluater ((obj lessthan) &optional environment)
+  (make-bool (< (value (evaluater (left obj) environment))
+                (value (evaluater (right obj) environment)))))
+(defun evaluate (obj &optional environment)
+  (show (evaluater obj environment)))
+
+(defmethod evaluater ((obj assign) &optional environment)
+  (if environment
+      (progn
+        (push (car (one-varabl-env (name obj) (evaluate (expression obj))))
+              environment)
+        environment)
+      (one-varabl-env (name obj) (evaluate (expression obj)))))
