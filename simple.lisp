@@ -6,9 +6,11 @@
       (show-alist (cdr alist))))
 
 (defun show (obj)
-  (if (listp obj)
-      (show-alist obj)
-      (format t "<< ~A >>~%" (to-s obj))))
+  (cond
+    ((null obj) nil)
+    ((listp obj)
+     (show-alist obj))
+    (t (format t "<< ~A >>~%" (to-s obj)))))
 (defun push! (obj &optional place)
   (if place
       (push obj place)
@@ -263,17 +265,20 @@
 
 (defmethod evaluater ((obj assign) &optional environment)
   (if environment
-      (progn
-        (push (cons (name obj)
+      (nreverse
+       (mapcar
+        (lambda (x)
+          (if (eq (car x) (name obj))
+              (cons (name obj)
                     (num (value (evaluater (expression obj) environment))))
-              environment)
-        (nreverse environment))
+              x))
+        environment))
       (list (cons (name obj)
                   (num (value (evaluater (expression obj))))))))
 (defmethod evaluater ((obj donothing) &optional environment)
   (declare (ignore obj)) environment)
 (defmethod evaluater ((obj if-class) &optional environment)
-  (if (evaluater (condp obj) environment)
+  (if (value (evaluater (condp obj) environment))
       (evaluater (consequence obj) environment)
       (evaluater (alternative obj) environment)))
 (defmethod evaluater ((obj squenc) &optional environment)
