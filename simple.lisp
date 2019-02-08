@@ -309,3 +309,30 @@
   (lambda (&optional env) (value (cdr (assoc (name obj) env)))))
 (defmethod translate-str ((obj varabl))
   (format nil "(lambda (env) (value-of (var ~a) env))" (name obj)))
+(defmethod translate ((obj add))
+  (lambda (&optional env)
+    (+ (funcall (translate (left obj)) env)
+       (funcall (translate (right obj)) env))))
+(defmethod translate-str ((obj add))
+  (format nil
+    "(lambda (env) (+ ~a ~a))"
+      (translate-str (left obj))
+      (translate-str (right obj))))
+(defmethod translate ((obj multiply))
+  (lambda (&optional env)
+    (* (funcall (translate (left obj)) env)
+       (funcall (translate (right obj)) env))))
+(defmethod translate-str ((obj multiply))
+  (format nil
+    "(lambda (env) (* ~a ~a))"
+      (translate-str (left obj))
+      (translate-str (right obj))))
+(defmethod translate ((obj lessthan))
+  (lambda (&optional env)
+    (< (funcall (translate (left obj)) env)
+       (funcall (translate (right obj)) env))))
+(defmethod translate-str ((obj lessthan))
+  (format nil
+    "(lambda (env)~%  (< ~a~%     ~a))"
+      (translate-str (left obj))
+      (translate-str (right obj))))
