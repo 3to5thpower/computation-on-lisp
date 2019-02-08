@@ -336,3 +336,16 @@
     "(lambda (env)~%  (< ~a~%     ~a))"
       (translate-str (left obj))
       (translate-str (right obj))))
+
+(defmethod translate ((obj assign))
+  (lambda (&optional env)
+    (show
+     (if env
+         (push (cons (name obj)
+                     (num (funcall (translate (expression obj)) env)))
+               env)
+         (list (cons (name obj)
+                     (num (funcall (translate (expression obj)) env))))))))
+(defmethod translate-str ((obj assign))
+  (format nil "(lambda (env)~%  (setf ~a (funcall ~a env)))~%"
+    (name obj) (translate-str (expression obj))))
