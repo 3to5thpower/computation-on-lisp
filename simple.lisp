@@ -341,11 +341,29 @@
   (lambda (&optional env)
     (show
      (if env
-         (push (cons (name obj)
-                     (num (funcall (translate (expression obj)) env)))
-               env)
+         (mapcar (lambda (x)
+                   (if (eq (name obj) (car x))
+                       (cons (name obj)
+                             (num (funcall (translate (expression obj)) env)))
+                       x))
+                 env)
          (list (cons (name obj)
                      (num (funcall (translate (expression obj)) env))))))))
 (defmethod translate-str ((obj assign))
   (format nil "(lambda (env)~%  (setf ~a (funcall ~a env)))~%"
     (name obj) (translate-str (expression obj))))
+(defmethod translate ((obj donothing))
+  (lambda (&optional env) env))
+(defmethod translate-str ((obj donothing))
+  (format nil "(lambda (env) env)"))
+(defmethod translate ((obj if-class))
+  (lambda (&optional env)
+    (if (funcall (translate (condp obj)) env)
+        (funcall (translate (consequence obj)) env)
+        (funcall (translate (alternative obj)) env))))
+(defmethod translate-str ((obj if-class))
+  (format nil
+    "(lambda (env)~% (if (funcall ~a) (funcall ~a) ~%(funcall ~a)))~%"
+    (translate-str (condp obj))
+    (translate-str (consequence obj))
+    (translate-str (alternative obj))))
