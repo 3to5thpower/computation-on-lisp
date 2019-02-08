@@ -377,3 +377,13 @@
     "(lambda (env) (~a))~%
      (lambda (env) (~a))~%" (translate-str (fst obj))
      (translate-str (scnd obj))))
+(defmethod translate ((obj while))
+  (lambda (&optional env)
+    (if (funcall (translate (condp obj)) env)
+        (funcall (translate (body obj)) (funcall (translate (body obj)) env))
+        env)))
+(defmethod translate-str ((obj while))
+  (format nil
+          "(while (~a)~%  (~a))~%"
+          (translate-str (condp obj))
+          (translate-str (body obj))))
