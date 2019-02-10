@@ -379,9 +379,9 @@
      (translate-str (scnd obj))))
 (defmethod translate ((obj while))
   (lambda (&optional env)
-    (if (funcall (translate (condp obj)) env)
-        (funcall (translate (body obj)) (funcall (translate (body obj)) env))
-        env)))
+    (do ((local-env env))
+        ((not (funcall (translate (condp obj)) local-env)) local-env)
+      (setf local-env  (funcall (translate (body obj)) local-env)))))
 (defmethod translate-str ((obj while))
   (format nil
           "(while (~a)~%  (~a))~%"
