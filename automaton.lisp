@@ -50,6 +50,9 @@
 (defun acceptingp (dfa)
   (if(find (dfa-current-state dfa) (dfa-accept-states dfa))
      t))
+(defun reset-dfa (dfa)
+  (setf (dfa-current-state dfa) 1)
+  dfa)
 (defun read-character (dfa char)
   (setf (dfa-current-state dfa) (nextstate (dfa-book dfa)
                                            (dfa-current-state dfa)
@@ -58,14 +61,10 @@
   (mapc (lambda (c) (read-character dfa c))
         (map 'list (lambda (x) x) str))
   dfa)
+(defun dfa-run (dfa str)
+  (let ((temp dfa))
+    (reset-dfa temp)
+    (acceptingp (read-str temp str))))
 
-;;表示用の関数(使わないかも?)
-(defun show (obj)
-  (cond
-    ((farule-p obj)
-     (format t "rule: ~a ~a -> ~a"
-             (farule-state obj)
-             (farule-char obj)
-             (farule-next-state obj)))
-    (t (format t "~a" obj))))
+
 
