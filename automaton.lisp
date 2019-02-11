@@ -31,10 +31,28 @@
      append (loop for char in charlst
                  do (format t "~a:'~a'->?" i char)
                collect (list i char (read)))))
-(defun make-book (n charlst)
-  (apply #'makebook-fromlst (make-arglst n charlst)))
+(defun make-charlst (maxchar)
+  (let ((maxcode (- (char-code maxchar) 97)))
+    (loop for i to maxcode
+         collect (code-char (+ i 97)))))
+(defun make-book-fun (n maxchar)
+  (apply #'makebook-fromlst (make-arglst n (make-charlst maxchar))))
+(defmacro make-book (n symbolchar)
+  `(let ((maxchar (char-downcase (char (symbol-name ',symbolchar) 0))))
+     (make-book-fun ,n maxchar)))
 
 
+;;dfa
+(defstruct (dfa
+             (:constructor make-dfa (current-state accept-states book)))
+  current-state accept-states book)
+
+(defun acceptingp (dfa current-state)
+  (if(find current-state (dfa-accept-states dfa))
+     t))
+
+
+;;表示用の関数(使わないかも?)
 (defun show (obj)
   (cond
     ((farule-p obj)
