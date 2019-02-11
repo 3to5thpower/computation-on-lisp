@@ -47,10 +47,17 @@
              (:constructor make-dfa (current-state accept-states book)))
   current-state accept-states book)
 
-(defun acceptingp (dfa current-state)
-  (if(find current-state (dfa-accept-states dfa))
+(defun acceptingp (dfa)
+  (if(find (dfa-current-state dfa) (dfa-accept-states dfa))
      t))
-
+(defun read-character (dfa char)
+  (setf (dfa-current-state dfa) (nextstate (dfa-book dfa)
+                                           (dfa-current-state dfa)
+                                           char)))
+(defun read-str (dfa str)
+  (mapc (lambda (c) (read-character dfa c))
+        (map 'list (lambda (x) x) str))
+  dfa)
 
 ;;表示用の関数(使わないかも?)
 (defun show (obj)
