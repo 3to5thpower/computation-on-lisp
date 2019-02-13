@@ -1,5 +1,67 @@
+;;Finite Automatonの遷移規則
+(defstruct (farule
+             (:constructor rule (state char next-state)))
+  state char next-state)
+
+(defun appliablep (rule state char)
+  (and
+   (= state (farule-state rule))
+   (if (characterp char)
+       (if (farule-char rule)
+           (char= char (farule-char rule)))
+       (if (farule-char rule)
+           nil
+           t))))
+(defun follow (rule) (farule-next-state rule))
+
+(defun follow-free-moves (book states)
+  (let ((more-states (next-states book states nil))
+        (temp states))
+    (if (subsetp more-states temp)
+        temp
+        (follow-free-moves book (union temp more-states)))))
+
+;;nfaの遷移規則を生成
+(defun next-states (book states char)
+  (apply #'append (mapcar (lambda (state) (follow-rules-for book state char))
+                          states)))
+(defun follow-rules-for (rules state char)
+  (mapcar #'follow (rules-for rules state char)))
+(defun rules-for (rules state char)
+  (remove-if-not (lambda (rule) (appliablep rule state char))
+                 rules))
+
+
+
+;;nfa
+(defstruct (nfa
+             (:constructor make-nfa (curr-state accept-state book)))
+  curr-state accept-state book)
+(defun acceptp (nfa)
+  (let ((curr (nfa-curr-state nfa))
+        (acc (nfa-accept-state nfa)))
+    (if (intersection curr acc)
+      t)))
+
+(defun curr-states (nfa)
+  (follow-free-moves (nfa-book nfa) (nfa-curr-state nfa)))
+
+(defun read-character (nfa char)
+  (make-nfa (next-states (nfa-book nfa) (curr-states nfa) char)
+                      (nfa-accept-state nfa)
+                      (nfa-book nfa)))
+
+(defun read-string (nfa string)
+  (let ((temp (copy-nfa nfa)))
+    (acceptp (reduce (lambda (nfa c) (read-character nfa c))
+                     string :initial-value temp))))
+
+
+;;----------------------------------------------------------------------nfa.lisp
 ;;正規表現
 
+(defun show (pattern)
+  (format t "/~a/" (to-s pattern)))
 ;;継承元
 (defclass pattern ()
   ((precedence :accessor precedence :initarg :precedence)))
@@ -63,13 +125,15 @@
   `(make-instance 'choose :fst ,fst :scnd ,scnd))
 
 ;;repeatクラス
-(defclass repeat (pattern)
-  ((pattern :accessor pattern :initarg :pattern)))
+(defclass repeat (pat)
+  ((pat :accessor pat :initarg :pat)))
 (defmethod initialize-instance :after ((repeat repeat) &key)
-  (with-slots (precedence pattern) repeat
+  (with-slots (precedence pat) repeat
     (setf precedence 2)
     (format nil "~a" (to-s repeat))))
 (defmethod to-s ((obj repeat))
-  (format nil "~a*" (bracket (pattern obj) (precedence obj))))
-(defmacro make-repeat (pattern)
-  `(make-instance 'repeat :pattern ,pattern))
+  (format nil "~a*" (bracket (pat obj) (precedence obj))))
+(defmacro make-repeat (pat)
+  `(make-instance 'repeat :pat ,pat))
+
+;;意味論
