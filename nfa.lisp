@@ -18,3 +18,14 @@
 (defun rules-for (rules state char)
   (remove-if-not (lambda (rule) (appliablep rule state char))
                  rules))
+
+
+
+;;nfa
+(defstruct (nfa
+             (:constructor make-nfa (curr-state accept-state book)))
+  curr-state accept-state book)
+(defun acceptp (nfa)
+  (if (intersection (nfa-curr-state nfa) (nfa-accept-state nfa))
+      t))
+
