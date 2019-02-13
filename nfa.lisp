@@ -22,8 +22,8 @@
 
 ;;nfaの遷移規則を生成
 (defun next-states (book states char)
-  (mapcan (lambda (state) (follow-rules-for book state char))
-          states))
+  (apply #'append (mapcar (lambda (state) (follow-rules-for book state char))
+                          states)))
 (defun follow-rules-for (rules state char)
   (mapcar #'follow (rules-for rules state char)))
 (defun rules-for (rules state char)
@@ -47,7 +47,7 @@
 (defun read-character (nfa char)
   (setf (nfa-curr-state nfa)
         (next-states (nfa-book nfa) (curr-states nfa) char)))
-(defun read-string (nfa1 string)
-  (let ((temp nfa1))
+(defun read-string (nfa string)
+  (let ((temp (copy-nfa nfa)))
     (map 'list (lambda (c) (read-character temp c)) string)
-    (acceptp temp)))
+    (values (acceptp temp) temp)))
