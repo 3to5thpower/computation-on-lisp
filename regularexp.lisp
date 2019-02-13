@@ -1,3 +1,12 @@
+;;ユーティリティ関数
+(defun flat (lst)
+  (labels ((rec (lst acc)
+             (if (null lst)
+                 acc
+                 (if (listp (car lst))
+                     (append (car lst) (rec (cdr lst) acc))
+                     (cons (car lst) (rec (cdr lst) acc))))))
+    (rec lst nil)))
 ;;Finite Automatonの遷移規則
 (defstruct (farule
              (:constructor rule (state char next-state)))
@@ -5,21 +14,19 @@
 
 (defun appliablep (rule state char)
   (and
-   (= state (farule-state rule))
+   (equal state (farule-state rule))
    (if (characterp char)
        (if (farule-char rule)
-           (char= char (farule-char rule)))
+           (equal char (farule-char rule)))
        (if (farule-char rule)
            nil
            t))))
 (defun follow (rule) (farule-next-state rule))
 
 (defun follow-free-moves (book states)
-  (let ((more-states (next-states book states nil))
-        (temp states))
-    (if (subsetp more-states temp)
-        temp
-        (follow-free-moves book (union temp more-states)))))
+  (if (subsetp (next-states book states nil) states)
+      states
+      (follow-free-moves book (union states (next-states book states nil)))))
 
 ;;nfaの遷移規則を生成
 (defun next-states (book states char)
@@ -31,25 +38,25 @@
   (remove-if-not (lambda (rule) (appliablep rule state char))
                  rules))
 
-
-
 ;;nfa
 (defstruct (nfa
              (:constructor make-nfa (curr-state accept-state book)))
   curr-state accept-state book)
 (defun acceptp (nfa)
-  (let ((curr (nfa-curr-state nfa))
-        (acc (nfa-accept-state nfa)))
-    (if (intersection curr acc)
-      t)))
+  (if (intersection (curr-states nfa) (nfa-accept-state nfa))
+      t))
 
 (defun curr-states (nfa)
   (follow-free-moves (nfa-book nfa) (nfa-curr-state nfa)))
 
 (defun read-character (nfa char)
-  (make-nfa (next-states (nfa-book nfa) (curr-states nfa) char)
-                      (nfa-accept-state nfa)
-                      (nfa-book nfa)))
+  (make-nfa
+   (flat (curr-states
+          (make-nfa (next-states (nfa-book nfa) (curr-states nfa) char)
+                    (nfa-accept-state nfa)
+                    (nfa-book nfa))))
+   (nfa-accept-state nfa)
+   (nfa-book nfa)))
 
 (defun read-string (nfa string)
   (let ((temp (copy-nfa nfa)))
@@ -69,6 +76,8 @@
   (if (< (precedence obj) outer-precedence)
       (format nil "(~a)" (to-s obj))
       (to-s obj)))
+(defmethod matchesp ((obj pattern) str)
+  (read-string (to-nfa obj) str))
 
 ;;emptyクラス
 (defclass empty (pattern) ())
@@ -137,3 +146,32 @@
   `(make-instance 'repeat :pat ,pat))
 
 ;;意味論
+(defclass state () ())
+(define-symbol-macro object (make-instance 'state))
+
+
+;;emptyとliteralに対してNFAを生成するメソッド
+
+(defmethod to-nfa ((obj empty))
+  (let* ((start-state (list object))
+         (accept-state start-state)
+         (book nil))
+    (make-nfa start-state accept-state book)))
+(defmethod to-nfa ((obj literal))
+  (let* ((start object) (accept object)
+         (rule (rule start (literal-char obj) accept))
+         (book (list rule)))
+    (make-nfa (list start) (list accept) book)))
+
+;;concatに対してNFAを生成するメソッド
+(defmethod to-nfa ((obj concat))
+  (let* ((first (to-nfa (fst obj)))
+         (second (to-nfa (scnd obj)))
+         (start (nfa-curr-state first))
+         (accept (nfa-accept-state second))
+         (rules (union (nfa-book first) (nfa-book second)))
+         (exrules
+          (mapcar (lambda (state) (rule state nil (curr-states second)))
+                  (nfa-accept-state first)))
+         (book (append rules exrules)))
+    (make-nfa start accept book)))
