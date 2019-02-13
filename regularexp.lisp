@@ -47,14 +47,14 @@
       t))
 
 (defun curr-states (nfa)
-  (follow-free-moves (nfa-book nfa) (nfa-curr-state nfa)))
+  (flat (follow-free-moves (nfa-book nfa) (nfa-curr-state nfa))))
 
 (defun read-character (nfa char)
   (make-nfa
-   (flat (curr-states
+   (curr-states
           (make-nfa (next-states (nfa-book nfa) (curr-states nfa) char)
                     (nfa-accept-state nfa)
-                    (nfa-book nfa))))
+                    (nfa-book nfa)))
    (nfa-accept-state nfa)
    (nfa-book nfa)))
 
@@ -173,5 +173,19 @@
          (exrules
           (mapcar (lambda (state) (rule state nil (curr-states second)))
                   (nfa-accept-state first)))
-         (book (append rules exrules)))
+         (book (union rules exrules)))
     (make-nfa start accept book)))
+
+;;chooseに対してNFAを生成するメソッド
+(defmethod to-nfa ((obj choose))
+  (let* ((first (to-nfa (fst obj)))
+         (second (to-nfa (scnd obj)))
+         (start object)
+         (accept (union (nfa-accept-state first)
+                        (nfa-accept-state second)))
+         (rules (union (nfa-book first) (nfa-book second)))
+         (exrules
+          (mapcar (lambda (nfa) (rule start nil (nfa-curr-state nfa)))
+                  (list first second)))
+         (book (union rules exrules)))
+    (make-nfa (list start) accept book)))
