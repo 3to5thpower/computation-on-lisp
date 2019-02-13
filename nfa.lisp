@@ -29,3 +29,10 @@
   (if (intersection (nfa-curr-state nfa) (nfa-accept-state nfa))
       t))
 
+(defun read-character (nfa char)
+  (setf (nfa-curr-state nfa)
+        (next-states (nfa-book nfa) (nfa-curr-state nfa) char)))
+(defun read-string (nfa string)
+  (let ((temp nfa))
+    (map 'list (lambda (c) (read-character nfa c)) string)
+    (acceptp temp)))
