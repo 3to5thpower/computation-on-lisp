@@ -39,7 +39,7 @@
 (defmacro rule (state char next pop pushes)
   `(make-instance 'pda-rule :state ,state :pda-char ,char
                   :next-state ,next :pop-char ,pop :push-chars ,pushes))
-(defmethod appliablep ((rule pda-rule) config char)
+(defmethod appliablep ((rule pda-rule) config &optional char)
   (and
    (equal (state rule) (state config))
    (equal (pop-char rule) (first (stack-content (pda-stack config))))
@@ -56,3 +56,12 @@
   (let ((poped-stack (sta-pop (pda-stack config))))
     (reduce (lambda (char stack) (sta-push char stack))
             (push-chars rule) :from-end t :initial-value poped-stack)))
+
+(defun dpdarule-book (&rest rules)
+  rules)
+
+(defun next-config (book config &optional char)
+  (follow (rule-for book config char) config))
+(defun rule-for (book config &optional char)
+  (find-if (lambda (rule) (appliablep rule config char))
+           book))
