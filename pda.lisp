@@ -68,9 +68,12 @@
 
 ;;dpdaクラス
 (defclass dpda ()
-  ((curr-config :accessor curr :initarg :config)
+  ((curr-config :initarg :config)
    (accept-states :accessor acceptors :initarg :accepts)
    (book :accessor book :initarg :book)))
+(defun curr (dpda)
+  (follow-free-moves (book dpda) (slot-value dpda 'curr-config)))
+
 (defmacro make-dpda (config accept-states book)
   `(make-instance 'dpda :config ,config
                   :accepts ,accept-states
@@ -80,12 +83,21 @@
           (to-s (curr dpda)) (acceptors dpda) (mapcar #'to-s (book dpda))))
 (defmethod acceptingp ((dpda dpda))
   (if (find (state (curr dpda)) (acceptors dpda)) t))
-(defmethod read-character ((dpda dpda) &optional char)
-  (setf (curr dpda)
+
+;;文字列を読む
+(defun read-character (dpda &optional char)
+  (setf (slot-value dpda 'curr-config)
         (next-config (book dpda) (curr dpda) char))
   dpda)
-(defmethod read-string ((dpda dpda) &optional str)
+(defun read-string (dpda &optional str)
   (if str
-      (reduce (lambda (dpda c) (read-character dpda c))
-              str :initial-value dpda))
-  (read-character dpda nil))
+      (dolist (c (coerce str 'list) dpda) (read-character dpda c))
+      (read-character dpda nil)))
+
+;;自由移動をサポートする
+(defun book-appliablep (book config &optional char)
+  (if (rule-for book config char) t))
+(defun follow-free-moves (book config)
+  (if (book-appliablep book config)
+      (follow-free-moves book (next-config book config nil))
+      config))
