@@ -45,7 +45,7 @@
    (equal (pop-char rule) (first (stack-content (pda-stack config))))
    (equal (pda-char rule) char)))
 (defmethod to-s ((rule pda-rule))
-  (format nil "~a->~a:get ~a pop ~a push ~a"
+  (format nil "~a->~a:get ~a pop ~a push ~a~%"
           (state rule) (next-state rule)
           (pda-char rule) (pop-char rule) (push-chars rule)))
 
@@ -65,3 +65,27 @@
 (defun rule-for (book config &optional char)
   (find-if (lambda (rule) (appliablep rule config char))
            book))
+
+;;dpdaクラス
+(defclass dpda ()
+  ((curr-config :accessor curr :initarg :config)
+   (accept-states :accessor acceptors :initarg :accepts)
+   (book :accessor book :initarg :book)))
+(defmacro make-dpda (config accept-states book)
+  `(make-instance 'dpda :config ,config
+                  :accepts ,accept-states
+                  :book ,book))
+(defmethod to-s ((dpda dpda))
+  (format nil "config:~a~%accept-states:~a~%rule:~a"
+          (to-s (curr dpda)) (acceptors dpda) (mapcar #'to-s (book dpda))))
+(defmethod acceptingp ((dpda dpda))
+  (if (find (state (curr dpda)) (acceptors dpda)) t))
+(defmethod read-character ((dpda dpda) &optional char)
+  (setf (curr dpda)
+        (next-config (book dpda) (curr dpda) char))
+  dpda)
+(defmethod read-string ((dpda dpda) &optional str)
+  (if str
+      (reduce (lambda (dpda c) (read-character dpda c))
+              str :initial-value dpda))
+  (read-character dpda nil))
