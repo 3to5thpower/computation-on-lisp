@@ -114,8 +114,8 @@
     (format nil "~a" (to-s concat))))
 (defmethod to-s ((obj concat))
   (format nil "~a~a"
-          (bracket (fst obj) (precedence (fst obj)))
-          (bracket (scnd obj) (precedence (scnd obj)))))
+          (bracket (fst obj) (precedence obj))
+          (bracket (scnd obj) (precedence obj))))
 (defmacro make-concat (fst scnd)
   `(make-instance 'concat :fst ,fst :scnd ,scnd))
 
@@ -204,4 +204,4 @@
                    (nfa-accept-state pattern))
            (list (rule start nil (nfa-curr-state pattern)))))
          (book (union rules exrules)))
-    (make-nfa start accept book)))
+    (make-nfa (list start) accept book)))
