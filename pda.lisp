@@ -18,11 +18,20 @@
 ;;PDAの構成(状態とStack)を保持する構造
 (defclass pda-config ()
   ((state :accessor state :initarg :state)
-   (pda-stack :accessor pda-stack :initarg :pda-stack)))
+   (pda-stack :accessor pda-stack :initarg :pda-stack)
+   (stuck-state :accessor stuck)))
 (defmacro config (state stack)
   `(make-instance 'pda-config :state ,state :pda-stack ,stack))
 (defmethod to-s ((config pda-config))
   (format nil "~a:~a" (state config) (stack-content (pda-stack config))))
+
+;;行き詰まり状態に対応させる機能
+(defclass stuck ()())
+(define-symbol-macro object (make-instance 'stuck))
+(defmethod stuck ((config pda-config))
+  (config object (pda-stack config)))
+(defmethod stuckp ((config pda-config))
+  (eq (class-of (state config)) (class-of object)))
 
 ;;PDAの遷移規則
 (defclass  pda-rule ()
@@ -84,14 +93,25 @@
 (defmethod acceptingp ((dpda dpda))
   (if (find (state (curr dpda)) (acceptors dpda)) t))
 
+(defmethod next-configuration ((dpda dpda) char)
+  (if (book-appliablep (book dpda) (curr dpda) char)
+      (next-config book (curr dpda) char)
+      (stuck (curr dpda))))
+(defmethod stuckp ((dpda dpda))
+  (stuckp (curr dpda)))
+
+
 ;;文字列を読む
 (defun read-character (dpda &optional char)
   (setf (slot-value dpda 'curr-config)
-        (next-config (book dpda) (curr dpda) char))
+        (next-configuration dpda char))
   dpda)
 (defun read-string (dpda &optional str)
   (if str
-      (dolist (c (coerce str 'list) dpda) (read-character dpda c))
+      (dolist (c (coerce str 'list) dpda)
+        (read-character dpda c)
+        (if (stuckp dpda)
+            (return dpda)))
       (read-character dpda nil)))
 
 ;;自由移動をサポートする
@@ -101,3 +121,8 @@
   (if (book-appliablep book config)
       (follow-free-moves book (next-config book config nil))
       config))
+
+;;dpda-design
+(defun acceptp (dpda str)
+  (let ((temp dpda))
+    (acceptingp (read-string temp str))))
